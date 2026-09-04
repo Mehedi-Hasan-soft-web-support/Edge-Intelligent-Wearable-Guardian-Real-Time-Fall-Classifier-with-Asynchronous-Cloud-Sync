@@ -1,0 +1,806 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TinyGuardian</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M20 6 L31 11 C31 24 27 30 20 34 C13 30 9 24 9 11 Z' fill='none' stroke='%23178A46' stroke-width='3'/%3E%3C/svg%3E">
+<style>
+:root{
+  --leaf:#178A46; --leaf-deep:#0E5C2E; --leaf-bright:#2FB25C;
+  --leaf-soft:#E6F3EA; --leaf-mist:#F4F8F4;
+  --ink:#12211A; --ink-muted:#6C7F74;
+  --hairline:#E4EDE7; --card:#FFFFFF;
+  --alert:#C2372C; --alert-soft:#FBECEA;
+  --caution:#B47512; --caution-soft:#FBF3E4;
+  --slate:#8A9993; --slate-soft:#F0F3F1;
+  --radius:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--leaf-mist); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px; line-height:1.45; letter-spacing:-.005em;
+}
+a{color:inherit}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+/* ---------- top bar ---------- */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; gap:14px;
+  padding:12px 24px; background:var(--card); border-bottom:1px solid var(--hairline);
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px}
+.brand svg{display:block}
+.brand small{display:block;font-weight:400;font-size:11.5px;color:var(--ink-muted);letter-spacing:.01em}
+.topbar .spacer{flex:1}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 11px;border-radius:999px;
+  font-size:11.5px;font-weight:600;background:var(--slate-soft);color:var(--ink-muted);
+  white-space:nowrap;
+}
+.chip.live{background:var(--leaf-soft);color:var(--leaf-deep)}
+.chip[hidden]{display:none}
+.chip.warn{background:var(--alert-soft);color:var(--alert)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.dot.pulse{animation:breathe 1.6s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+.ghost-btn{padding:7px 12px;border:1px solid var(--hairline);border-radius:10px;font-size:12.5px;font-weight:500;color:var(--ink-muted)}
+.ghost-btn:hover{border-color:var(--leaf);color:var(--leaf)}
+.ghost-btn[aria-pressed="true"]{background:var(--leaf-soft);border-color:var(--leaf);color:var(--leaf-deep)}
+
+/* ---------- fall banner ---------- */
+.banner{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 24px;background:var(--alert);color:#fff;
+}
+.banner strong{font-size:15.5px}
+.banner span{opacity:.85;font-size:13.5px}
+.banner button{margin-left:auto;background:#fff;color:var(--alert);padding:8px 14px;border-radius:10px;font-weight:600;font-size:13px}
+.banner[hidden]{display:none}
+
+/* ---------- layout ---------- */
+.wrap{
+  max-width:1240px;margin:0 auto;padding:22px 24px 60px;
+  display:grid;grid-template-columns:340px 1fr;gap:22px;align-items:start;
+}
+.card{background:var(--card);border:1px solid var(--hairline);border-radius:var(--radius);padding:18px}
+.card + .card{margin-top:14px}
+h2{font-size:16px;font-weight:600;margin:22px 0 10px}
+h2:first-child{margin-top:0}
+.muted{color:var(--ink-muted)}
+.tiny{font-size:11.5px}
+
+/* ---------- greeting ---------- */
+.greeting{text-align:center;padding:6px 0 16px}
+.greeting h1{font-size:23px;font-weight:600;letter-spacing:-.02em}
+.greeting .place{display:inline-flex;align-items:center;gap:3px;color:var(--leaf);font-size:13.5px;font-weight:500;margin-top:2px}
+.search{
+  display:flex;align-items:center;gap:10px;
+  background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:11px 14px;
+}
+.search input{flex:1;border:none;outline:none;font-size:14.5px;color:var(--ink);background:none}
+.search input::placeholder{color:var(--ink-muted)}
+
+/* ---------- node rows ---------- */
+.node{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:14px;margin-bottom:10px;
+  transition:border-color .15s ease, transform .15s ease;
+}
+.node:hover{border-color:var(--leaf)}
+.node[aria-current="true"]{border-color:var(--leaf);box-shadow:inset 0 0 0 1px var(--leaf)}
+.node .glyph{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;flex:none}
+.node .body{flex:1;min-width:0;display:block}
+.node .name{display:block;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .state{display:block;font-size:13px;font-weight:500;margin-top:2px}
+.node .chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.node .caret{color:var(--slate);flex:none}
+
+/* ---------- hero ---------- */
+.hero{
+  display:flex;align-items:center;gap:20px;border-radius:20px;padding:20px 22px;color:#fff;
+  background:linear-gradient(100deg,var(--leaf-deep),var(--leaf));
+}
+.hero.state-alert{background:linear-gradient(100deg,#A32B22,var(--alert))}
+.hero.state-watch{background:linear-gradient(100deg,#8F5C0C,var(--caution))}
+.hero.state-offline{background:linear-gradient(100deg,#6F7D78,var(--slate))}
+.hero .eyebrow{display:flex;align-items:center;gap:7px;font-size:12.5px;opacity:.9}
+.hero h3{font-size:21px;font-weight:600;margin-top:7px;letter-spacing:-.01em}
+.hero p{font-size:13.5px;opacity:.88;margin-top:4px}
+.gauge{flex:none;width:118px;height:118px;position:relative;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.13)}
+.gauge svg{position:absolute;inset:0}
+.gauge .val{font-size:20px;font-weight:600;line-height:1.1}
+.gauge .lbl{font-size:11px;opacity:.85;text-align:center}
+
+/* ---------- metric tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:14px}
+.tile .v{font-size:24px;font-weight:600;letter-spacing:-.02em}
+.tile .v span{font-size:12.5px;font-weight:500;color:var(--ink-muted);margin-left:3px}
+.tile .l{font-size:13.5px;margin-top:6px}
+.tile .c{font-size:11.5px;color:var(--ink-muted);margin-top:2px}
+.tile.hot .v{color:var(--alert)}
+.tile.good .v{color:var(--leaf)}
+
+/* ---------- chart ---------- */
+.chartwrap{position:relative}
+.chartwrap svg{width:100%;height:auto;display:block;overflow:visible}
+.chart-foot{display:flex;justify-content:space-between;margin-top:10px;font-size:11.5px;color:var(--ink-muted)}
+.tip{
+  position:absolute;pointer-events:none;transform:translate(-50%,-115%);
+  background:var(--ink);color:#fff;border-radius:8px;padding:6px 9px;font-size:11.5px;white-space:nowrap;opacity:0;transition:opacity .12s
+}
+.tip.on{opacity:1}
+
+/* ---------- probability ---------- */
+.pbar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--slate-soft)}
+.pbar i{display:block;height:100%}
+.legend{display:flex;justify-content:space-between;margin-top:12px;gap:8px}
+.legend div{text-align:center;flex:1}
+.legend .n{font-size:16px;font-weight:600}
+.legend .k{font-size:11.5px;color:var(--ink-muted)}
+
+/* ---------- rows / tables ---------- */
+.kv{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--hairline);font-size:14px}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--ink-muted)}
+.kv .v{font-weight:500;text-align:right;word-break:break-word}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-weight:500;color:var(--ink-muted);font-size:11.5px;padding:0 0 8px}
+td{padding:9px 0;border-top:1px solid var(--hairline)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- alerts ---------- */
+.alert-card{border:1px solid var(--hairline);border-radius:16px;overflow:hidden;display:flex;margin-bottom:10px;background:var(--card)}
+.alert-card .edge{width:4px;flex:none;background:var(--leaf)}
+.alert-card.open{border-color:rgba(194,55,44,.35)}
+.alert-card.open .edge{background:var(--alert)}
+.alert-card .inner{padding:15px 16px;flex:1}
+.alert-head{display:flex;align-items:baseline;gap:10px}
+.alert-head h4{font-size:15px;font-weight:600}
+.alert-card.open .alert-head h4{color:var(--alert)}
+.alert-head .when{margin-left:auto;font-size:11.5px;color:var(--ink-muted)}
+.facts{display:flex;gap:18px;margin-top:10px;flex-wrap:wrap}
+.facts b{display:block;font-size:15px;font-weight:600}
+.facts span{font-size:11.5px;color:var(--ink-muted)}
+.actions{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap}
+.act{padding:9px 14px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid var(--hairline);color:var(--ink-muted)}
+.act:hover{border-color:var(--leaf);color:var(--leaf-deep)}
+.act.primary{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.act.primary:hover{background:var(--leaf-deep);color:#fff}
+.act[disabled]{opacity:.5;cursor:default}
+
+.empty{background:var(--leaf-soft);border-radius:16px;padding:18px;color:var(--leaf-deep)}
+.empty h4{font-size:15px;font-weight:600}
+.empty p{font-size:13.5px;opacity:.85;margin-top:3px}
+.error{background:var(--alert-soft);border-radius:14px;padding:14px;color:var(--alert);font-size:13.5px;margin-bottom:14px}
+
+.summary{display:flex;justify-content:space-between;background:var(--leaf-soft);border-radius:16px;padding:16px;gap:10px}
+.summary b{display:block;font-size:19px;font-weight:600;color:var(--leaf-deep)}
+.summary span{font-size:11.5px;color:rgba(14,92,46,.75)}
+
+.skel{background:linear-gradient(90deg,var(--slate-soft),#fff,var(--slate-soft));background-size:200% 100%;animation:sweep 1.4s linear infinite;border-radius:10px;height:14px}
+@keyframes sweep{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+@media (max-width:920px){
+  .wrap{grid-template-columns:1fr;padding:16px 14px 48px}
+  .topbar{padding:12px 14px}
+  .hero{flex-direction:column;align-items:flex-start}
+  .gauge{align-self:center}
+}
+@media (prefers-reduced-motion:reduce){
+  .dot.pulse,.skel{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
+      <circle cx="20" cy="20" r="20" fill="#E6F3EA"></circle>
+      <path d="M20 8 L30.4 12.4 C30.4 24.8 26.4 29.6 20 32.8 C13.6 29.6 9.6 24.8 9.6 12.4 Z"
+            fill="none" stroke="#178A46" stroke-width="2.2" stroke-linejoin="round"></path>
+      <path d="M15.2 23.2 C16 16 20.8 13.6 25.2 14 C25.6 20 22 24 15.2 23.2 Z" fill="#178A46" opacity=".85"></path>
+    </svg>
+    <div>
+      TinyGuardian
+      <small>on-device fall detection</small>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <span class="chip" id="linkChip"><span class="dot"></span><span id="linkText">connecting</span></span>
+  <span class="chip warn" id="openChip" hidden></span>
+  <button class="ghost-btn" id="soundBtn" aria-pressed="false">Sound off</button>
+</header>
+
+<div class="banner" id="banner" hidden>
+  <strong id="bannerTitle">Fall detected</strong>
+  <span id="bannerBody"></span>
+  <button id="bannerBtn">Respond</button>
+</div>
+
+<main class="wrap">
+  <!-- ============ side column ============ -->
+  <section>
+    <div class="greeting">
+      <h1 id="greeting">Hello</h1>
+      <div class="place" id="place">no room set
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </div>
+
+    <div class="search">
+      <input id="search" type="search" placeholder="Search nodes or rooms" autocomplete="off">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6C7F74" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>
+    </div>
+
+    <h2>Your nodes</h2>
+    <div id="nodeList"></div>
+
+    <h2>Watch summary</h2>
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <!-- ============ main column ============ -->
+  <section>
+    <div id="errorBox"></div>
+
+    <div class="hero" id="hero">
+      <div style="flex:1">
+        <div class="eyebrow"><span class="dot pulse"></span><span id="heroEyebrow">connecting to the node</span></div>
+        <h3 id="heroTitle">Loading</h3>
+        <p id="heroSub">Reading the latest row from Supabase</p>
+      </div>
+      <div class="gauge">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <path id="gaugeTrack" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="8.5" stroke-linecap="round"></path>
+          <path id="gaugeFill" fill="none" stroke="#fff" stroke-width="8.5" stroke-linecap="round"></path>
+        </svg>
+        <div>
+          <div class="val" id="gaugeVal">0%</div>
+          <div class="lbl" id="gaugeLbl">no data</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>This second</h2>
+    <div class="tiles" id="tiles"></div>
+
+    <h2 id="trendTitle">Impact peaks</h2>
+    <div class="card chartwrap">
+      <svg id="chart" viewBox="0 0 620 170" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Impact peak trend"></svg>
+      <div class="tip" id="tip"></div>
+      <div class="chart-foot">
+        <span id="chartStart">--:--</span>
+        <span>dashed line: 2.5 g fall threshold</span>
+        <span id="chartEnd">--:--</span>
+      </div>
+    </div>
+
+    <h2>What the model sees</h2>
+    <div class="card">
+      <div class="pbar" id="pbar">
+        <i style="width:25%;background:#8A9993"></i><i style="width:25%;background:#178A46"></i>
+        <i style="width:25%;background:#C2372C"></i><i style="width:25%;background:#B47512"></i>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <h2>Node health</h2>
+    <div class="card" id="health"></div>
+
+    <h2 id="alertsTitle">Fall alerts</h2>
+    <div id="alerts"></div>
+
+    <h2>Recent readings</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Time</th><th>Status</th><th class="num">Peak</th><th class="num">Dip</th><th class="num">Tilt</th><th class="num">Rotation</th></tr></thead>
+        <tbody id="readings"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+/* =========================================================================
+   TinyGuardian web dashboard
+   REST polling is the backbone, realtime is layered on top when it connects.
+   ========================================================================= */
+
+const SUPABASE_URL = "https://zrwapsqqptlodfgnjzjs.supabase.co";
+const ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+  "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpyd2Fwc3FxcHRsb2RmZ25qempzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MjAwNzAsImV4cCI6MjEwMzk5NjA3MH0." +
+  "yNnhD6bSSWplH7IxOha2haafQYwTfCbXnZLsfOb2fCc";
+
+const POLL_MS = 2500;
+const FALL_THRESHOLD_G = 2.5;
+
+const headers = {
+  apikey: ANON_KEY,
+  Authorization: "Bearer " + ANON_KEY,
+  Accept: "application/json"
+};
+
+const state = {
+  devices: [], selectedId: null, trend: [], alerts: [],
+  query: "", link: "connecting", seenFalls: new Set(), sound: false,
+  primed: false
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* ---------------------------------------------------------------- data --- */
+async function api(path, options) {
+  const res = await fetch(SUPABASE_URL + "/rest/v1" + path, { headers, ...options });
+  if (!res.ok) throw new Error("Supabase " + res.status + " on " + path);
+  return res.status === 204 ? null : res.json();
+}
+
+async function refresh() {
+  try {
+    const devices = await api("/device_overview?select=*");
+    state.devices = devices;
+    if (!devices.some(d => d.id === state.selectedId)) {
+      state.selectedId = devices[0]?.id ?? null;
+    }
+    if (state.selectedId) {
+      state.trend = (await api(
+        "/telemetry?device_id=eq." + encodeURIComponent(state.selectedId) +
+        "&select=*&order=created_at.desc&limit=40")).reverse();
+    } else {
+      state.trend = [];
+    }
+    state.alerts = await api("/fall_events?select=*&order=created_at.desc&limit=50");
+    $("errorBox").innerHTML = "";
+    watchForNewFalls();
+    render();
+  } catch (err) {
+    if (state.link !== "live") setLink("polling");
+    $("errorBox").innerHTML =
+      '<div class="error"><b>Cannot reach the cloud.</b> ' + esc(err.message) +
+      '. Retrying every ' + (POLL_MS / 1000) + ' seconds.</div>';
+  }
+}
+
+async function respond(eventId, key) {
+  await api("/fall_events?id=eq." + eventId, {
+    method: "PATCH",
+    headers: { ...headers, "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({
+      acknowledged: true,
+      acknowledged_at: new Date().toISOString(),
+      response: key
+    })
+  });
+  await refresh();
+}
+
+/* ------------------------------------------------------------ realtime --- */
+async function connectRealtime() {
+  try {
+    const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
+    const sb = createClient(SUPABASE_URL, ANON_KEY, {
+      realtime: { params: { eventsPerSecond: 5 } }
+    });
+    sb.channel("tinyguardian")
+      .on("postgres_changes", { event: "*", schema: "public", table: "telemetry" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "fall_events" }, refresh)
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setLink("live");
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") setLink("polling");
+      });
+  } catch (e) {
+    setLink("polling");
+  }
+}
+
+function setLink(mode) {
+  state.link = mode;
+  const chip = $("linkChip");
+  chip.className = "chip" + (mode === "live" ? " live" : "");
+  chip.querySelector(".dot").className = "dot" + (mode === "live" ? " pulse" : "");
+  $("linkText").textContent =
+    mode === "live" ? "realtime" : mode === "polling" ? "polling every 2.5 s" : "connecting";
+}
+
+/* ------------------------------------------------------------- helpers --- */
+function stamp(iso) { return iso ? new Date(iso) : null; }
+
+function timeAgo(iso) {
+  const t = stamp(iso);
+  if (!t) return "no data yet";
+  const s = Math.max(0, Math.round((Date.now() - t.getTime()) / 1000));
+  if (s < 4) return "just now";
+  if (s < 60) return s + "s ago";
+  if (s < 3600) return Math.floor(s / 60) + " min ago";
+  if (s < 86400) return Math.floor(s / 3600) + " h ago";
+  return Math.floor(s / 86400) + " d ago";
+}
+const clock = (iso) => stamp(iso)?.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) ?? "--:--";
+const fullTime = (iso) => stamp(iso)?.toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) ?? "unknown time";
+const num = (v, d = 2) => (v === null || v === undefined) ? "--" : Number(v).toFixed(d);
+
+function deviceState(d) {
+  if (!d.online) return "offline";
+  if (d.open_alerts > 0 || d.status === "FALL") return "alert";
+  if (d.status === "ABNORMAL") return "watch";
+  return "safe";
+}
+const ACCENT = { safe: "#178A46", watch: "#B47512", alert: "#C2372C", offline: "#8A9993" };
+const SOFT = { safe: "#E6F3EA", watch: "#FBF3E4", alert: "#FBECEA", offline: "#F0F3F1" };
+
+function headline(d) {
+  const s = deviceState(d);
+  if (s === "alert") return d.status === "FALL" ? "Fall detected" : "Fall alert waiting for a response";
+  if (s === "watch") return "Unusual movement";
+  if (s === "offline") return "Node offline";
+  return d.status === "IDLE" ? "Resting, all clear" : "Moving normally";
+}
+const statusWord = (s) => ({ FALL: "Fall", ABNORMAL: "Unusual", IDLE: "Resting", NORMAL: "Normal" }[s] ?? "No data");
+
+function glyph(accent) {
+  return '<svg width="24" height="24" viewBox="0 0 40 40" aria-hidden="true">' +
+    '<path d="M20 8 L30.4 12.4 C30.4 24.8 26.4 29.6 20 32.8 C13.6 29.6 9.6 24.8 9.6 12.4 Z" fill="none" stroke="' +
+    accent + '" stroke-width="2.4" stroke-linejoin="round"/>' +
+    '<path d="M15.2 23.2 C16 16 20.8 13.6 25.2 14 C25.6 20 22 24 15.2 23.2 Z" fill="' + accent + '" opacity=".85"/></svg>';
+}
+
+/* ---------------------------------------------------------- fall alarm --- */
+function watchForNewFalls() {
+  const open = state.alerts.filter(a => !a.acknowledged);
+  if (!state.primed) {                       // first load never screams
+    open.forEach(a => state.seenFalls.add(a.id));
+    state.primed = true;
+    return;
+  }
+  const fresh = open.filter(a => !state.seenFalls.has(a.id));
+  fresh.forEach(a => state.seenFalls.add(a.id));
+  if (fresh.length) {
+    const a = fresh[0];
+    $("bannerTitle").textContent = "Fall on " + a.device_id;
+    $("bannerBody").textContent =
+      Math.round(a.confidence * 100) + "% confidence, " + num(a.impact_g, 1) + " g impact, " + timeAgo(a.created_at);
+    $("banner").hidden = false;
+    beep();
+  }
+}
+
+let audioCtx = null;
+function beep() {
+  if (!state.sound) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.28].forEach(offset => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime + offset);
+      gain.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + offset + 0.22);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(audioCtx.currentTime + offset);
+      osc.stop(audioCtx.currentTime + offset + 0.24);
+    });
+  } catch (e) { /* audio is a nicety, never a blocker */ }
+}
+
+/* -------------------------------------------------------------- render --- */
+function render() {
+  const selected = state.devices.find(d => d.id === state.selectedId) ?? null;
+  const latest = state.trend[state.trend.length - 1] ?? null;
+  const open = state.alerts.filter(a => !a.acknowledged);
+
+  // greeting
+  $("greeting").textContent = "Hello, " + (state.devices.find(d => d.caregiver)?.caregiver ?? "there");
+  $("place").childNodes[0].nodeValue = (selected?.room ?? "no room set") + " ";
+
+  // open alert chip
+  const chip = $("openChip");
+  chip.hidden = open.length === 0;
+  chip.textContent = open.length === 1 ? "1 alert open" : open.length + " alerts open";
+
+  renderNodes();
+  renderSummary(open);
+  renderHero(selected, latest);
+  renderTiles(latest);
+  renderChart();
+  renderModel(latest);
+  renderHealth(selected);
+  renderAlerts();
+  renderReadings();
+}
+
+function renderNodes() {
+  const q = state.query.trim().toLowerCase();
+  const list = state.devices.filter(d =>
+    !q || (d.name + " " + d.id + " " + (d.room ?? "")).toLowerCase().includes(q));
+
+  if (!list.length) {
+    $("nodeList").innerHTML =
+      '<div class="card"><b>' + (state.devices.length ? "Nothing matches that search" : "No node has reported yet") +
+      '</b><p class="muted tiny" style="margin-top:4px">Flash the firmware, set the wifi name and password, then this list fills in.</p></div>';
+    return;
+  }
+
+  $("nodeList").innerHTML = list.map(d => {
+    const s = deviceState(d);
+    return '<button class="node" data-id="' + esc(d.id) + '" aria-current="' + (d.id === state.selectedId) + '">' +
+      '<span class="glyph" style="background:' + SOFT[s] + '">' + glyph(ACCENT[s]) + '</span>' +
+      '<span class="body">' +
+        '<span class="name">' + esc(d.name) + '</span>' +
+        '<span class="state" style="color:' + ACCENT[s] + '">' + headline(d) + '</span>' +
+        '<span class="chips">' +
+          '<span class="chip">' + esc(d.room ?? d.id) + '</span>' +
+          (d.online ? '<span class="chip live"><span class="dot pulse"></span>' + timeAgo(d.updated_at ?? d.last_seen) + '</span>' : '') +
+          (d.open_alerts > 0 ? '<span class="chip warn">' + d.open_alerts + ' open</span>' : '') +
+        '</span>' +
+      '</span>' +
+      '<svg class="caret" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>' +
+      '</button>';
+  }).join("");
+
+  $("nodeList").querySelectorAll(".node").forEach(el => {
+    el.addEventListener("click", () => {
+      state.selectedId = el.dataset.id;
+      state.trend = [];
+      render();
+      refresh();
+    });
+  });
+}
+
+function renderSummary(open) {
+  $("summary").innerHTML =
+    '<div><b>' + state.devices.filter(d => d.online).length + "/" + state.devices.length + '</b><span>nodes online</span></div>' +
+    '<div><b>' + state.alerts.length + '</b><span>falls recorded</span></div>' +
+    '<div><b>' + open.length + '</b><span>awaiting reply</span></div>';
+}
+
+function renderHero(device, latest) {
+  const hero = $("hero");
+  if (!device) {
+    hero.className = "hero state-offline";
+    $("heroEyebrow").textContent = "no node selected";
+    $("heroTitle").textContent = "Nothing to watch yet";
+    $("heroSub").textContent = "Register a node, then pick it on the left.";
+    drawGauge(0);
+    $("gaugeVal").textContent = "0%";
+    $("gaugeLbl").textContent = "no data";
+    return;
+  }
+  const s = deviceState(device);
+  hero.className = "hero state-" + s;
+  $("heroEyebrow").textContent = device.online ? "live from the node" : "last known state";
+  $("heroTitle").textContent = headline(device);
+  $("heroSub").textContent =
+    "Updated " + timeAgo(device.updated_at ?? device.last_seen) + " from " + device.id;
+
+  const conf = latest?.confidence ?? 0;
+  drawGauge(conf);
+  $("gaugeVal").textContent = Math.round(conf * 100) + "%";
+  $("gaugeLbl").textContent = statusWord(latest?.status);
+}
+
+function arcPath(fraction) {
+  const cx = 50, cy = 50, r = 40;
+  const start = 132, sweep = 276 * Math.max(0, Math.min(1, fraction));
+  if (sweep <= 0.01) return "";
+  const pt = (deg) => {
+    const rad = (deg * Math.PI) / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  };
+  const [x1, y1] = pt(start), [x2, y2] = pt(start + sweep);
+  return "M" + x1.toFixed(2) + " " + y1.toFixed(2) +
+    " A40 40 0 " + (sweep > 180 ? 1 : 0) + " 1 " + x2.toFixed(2) + " " + y2.toFixed(2);
+}
+function drawGauge(fraction) {
+  $("gaugeTrack").setAttribute("d", arcPath(1));
+  $("gaugeFill").setAttribute("d", arcPath(fraction));
+}
+
+function renderTiles(t) {
+  const hotPeak = (t?.acc_peak ?? 0) > FALL_THRESHOLD_G;
+  const hotDip = (t?.acc_min ?? 1) < 0.35;
+  const tile = (v, unit, label, caption, cls = "") =>
+    '<div class="tile ' + cls + '"><div class="v">' + v + (unit ? '<span>' + unit + '</span>' : '') +
+    '</div><div class="l">' + label + '</div><div class="c">' + caption + '</div></div>';
+
+  $("tiles").innerHTML =
+    tile(num(t?.acc_peak), "g", "Impact peak", "over 2.5 g reads as a hit", hotPeak ? "hot" : "") +
+    tile(num(t?.acc_min), "g", "Free fall dip", "near 0 g means airborne", hotDip ? "hot" : "") +
+    tile(num(t?.tilt, 0), "deg", "Tilt change", "body orientation shift") +
+    tile(num(t?.gyro_peak, 0), "dps", "Peak rotation", "how fast it spun") +
+    tile(t?.infer_us ?? "--", "us", "Inference time", "on the ESP32 itself", "good");
+}
+
+function renderChart() {
+  const svg = $("chart");
+  const rows = state.trend;
+  const W = 620, H = 170, PAD = 6;
+  const accent = ACCENT[state.devices.find(d => d.id === state.selectedId) ?
+    deviceState(state.devices.find(d => d.id === state.selectedId)) : "offline"];
+
+  $("trendTitle").textContent = "Impact peaks, last " + rows.length + " readings";
+
+  if (rows.length < 2) {
+    svg.innerHTML = '<text x="' + (W / 2) + '" y="' + (H / 2) +
+      '" text-anchor="middle" fill="#6C7F74" font-size="13" font-family="inherit">waiting for readings</text>';
+    return;
+  }
+
+  const values = rows.map(r => Number(r.acc_peak) || 0);
+  const top = Math.max(FALL_THRESHOLD_G, ...values) * 1.15;
+  const x = (i) => PAD + (i * (W - PAD * 2)) / (values.length - 1);
+  const y = (v) => H - PAD - (v / top) * (H - PAD * 2);
+
+  const line = values.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
+  const area = line + " L" + x(values.length - 1).toFixed(1) + " " + (H - PAD) + " L" + x(0).toFixed(1) + " " + (H - PAD) + " Z";
+  const thresholdY = y(FALL_THRESHOLD_G).toFixed(1);
+
+  svg.innerHTML =
+    '<defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="' + accent + '" stop-opacity=".28"/>' +
+      '<stop offset="100%" stop-color="' + accent + '" stop-opacity="0"/>' +
+    '</linearGradient></defs>' +
+    '<path d="' + area + '" fill="url(#fill)"/>' +
+    '<line x1="' + PAD + '" y1="' + thresholdY + '" x2="' + (W - PAD) + '" y2="' + thresholdY +
+      '" stroke="#C2372C" stroke-width="1.2" stroke-dasharray="6 6" opacity=".6"/>' +
+    '<path d="' + line + '" fill="none" stroke="' + accent + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<circle cx="' + x(values.length - 1).toFixed(1) + '" cy="' + y(values[values.length - 1]).toFixed(1) +
+      '" r="4.5" fill="#fff" stroke="' + accent + '" stroke-width="2.5"/>';
+
+  $("chartStart").textContent = clock(rows[0].created_at);
+  $("chartEnd").textContent = clock(rows[rows.length - 1].created_at);
+
+  const tip = $("tip");
+  svg.onmousemove = (ev) => {
+    const box = svg.getBoundingClientRect();
+    const wrap = svg.parentElement.getBoundingClientRect();
+    const scale = box.width / W;
+    const i = Math.round(((ev.clientX - box.left) / scale - PAD) / ((W - PAD * 2) / (values.length - 1)));
+    const idx = Math.max(0, Math.min(values.length - 1, i));
+    tip.classList.add("on");
+    tip.style.left = (box.left - wrap.left + x(idx) * scale) + "px";
+    tip.style.top = (box.top - wrap.top + y(values[idx]) * scale) + "px";
+    tip.textContent = num(values[idx]) + " g, " + statusWord(rows[idx].status) + ", " + clock(rows[idx].created_at);
+  };
+  svg.onmouseleave = () => tip.classList.remove("on");
+}
+
+function renderModel(t) {
+  const parts = [
+    ["Resting", "#8A9993", t?.p_idle ?? 0],
+    ["Normal", "#178A46", t?.p_normal ?? 0],
+    ["Fall", "#C2372C", t?.p_fall ?? 0],
+    ["Unusual", "#B47512", t?.p_abnormal ?? 0]
+  ];
+  const total = parts.reduce((sum, p) => sum + Number(p[2]), 0) || 1;
+  $("pbar").innerHTML = parts.map(p =>
+    '<i style="width:' + ((Number(p[2]) / total) * 100).toFixed(2) + '%;background:' + p[1] + '"></i>').join("");
+  $("legend").innerHTML = parts.map(p =>
+    '<div><div class="n" style="color:' + p[1] + '">' + Math.round(Number(p[2]) * 100) + '%</div>' +
+    '<div class="k">' + p[0] + '</div></div>').join("");
+}
+
+function renderHealth(d) {
+  if (!d) { $("health").innerHTML = '<div class="kv"><span class="k">Node</span><span class="v">none selected</span></div>'; return; }
+  const uptime = (s) => {
+    if (s === null || s === undefined) return "unknown";
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return h > 24 ? Math.floor(h / 24) + " d " + (h % 24) + " h" : h > 0 ? h + " h " + m + " min" : m + " min";
+  };
+  const rows = [
+    ["Wifi signal", d.rssi != null ? d.rssi + " dBm" : "unknown"],
+    ["Uptime", uptime(d.uptime_s)],
+    ["Firmware", d.firmware ?? "unknown"],
+    ["Last heartbeat", timeAgo(d.last_seen)],
+    ["Caregiver", (d.caregiver ?? "not set") + (d.phone ? ", " + d.phone : "")],
+    ["Inference", d.infer_us ? d.infer_us + " us per window" : "unknown"]
+  ];
+  $("health").innerHTML = rows.map(r =>
+    '<div class="kv"><span class="k">' + r[0] + '</span><span class="v">' + esc(r[1]) + '</span></div>').join("");
+}
+
+function renderAlerts() {
+  const open = state.alerts.filter(a => !a.acknowledged);
+  $("alertsTitle").textContent = open.length
+    ? "Fall alerts, " + open.length + " waiting for a response"
+    : "Fall alerts";
+
+  if (!state.alerts.length) {
+    $("alerts").innerHTML =
+      '<div class="empty"><h4>No falls so far</h4><p>The node keeps watching and writes here the moment something happens.</p></div>';
+    return;
+  }
+
+  $("alerts").innerHTML = state.alerts.slice(0, 12).map(a => {
+    const isOpen = !a.acknowledged;
+    const phone = state.devices.find(d => d.id === a.device_id)?.phone ?? "";
+    return '<div class="alert-card ' + (isOpen ? "open" : "") + '" id="alert-' + a.id + '">' +
+      '<div class="edge"></div><div class="inner">' +
+        '<div class="alert-head"><h4>' + (isOpen ? "Fall detected" : "Fall handled") + '</h4>' +
+          '<span class="chip">' + esc(a.device_id) + '</span>' +
+          '<span class="when">' + timeAgo(a.created_at) + '</span></div>' +
+        '<div class="muted tiny" style="margin-top:3px">' + fullTime(a.created_at) + '</div>' +
+        '<div class="facts">' +
+          '<div><b>' + Math.round(a.confidence * 100) + '%</b><span>confidence</span></div>' +
+          '<div><b>' + num(a.impact_g, 1) + ' g</b><span>impact</span></div>' +
+          '<div><b>' + num(a.freefall_g) + ' g</b><span>free fall</span></div>' +
+          '<div><b>' + num(a.rotation_dps, 0) + ' dps</b><span>rotation</span></div>' +
+          '<div><b>' + num(a.tilt_deg, 0) + ' deg</b><span>tilt</span></div>' +
+        '</div>' +
+        (isOpen
+          ? '<div class="actions">' +
+              (phone ? '<a class="act primary" href="tel:' + esc(phone) + '" data-act="call" data-id="' + a.id + '">Call the caregiver</a>'
+                     : '<button class="act primary" data-act="call" data-id="' + a.id + '">Mark as called</button>') +
+              '<button class="act" data-act="check_later" data-id="' + a.id + '">Log a check-in</button>' +
+              '<button class="act" data-act="false_alarm" data-id="' + a.id + '">False alarm</button>' +
+            '</div>'
+          : '<div class="muted tiny" style="margin-top:10px">Closed as ' +
+            esc((a.response ?? "handled").replace("_", " ")) + ", " + fullTime(a.acknowledged_at) + '</div>') +
+      '</div></div>';
+  }).join("");
+
+  $("alerts").querySelectorAll("[data-act]").forEach(el => {
+    el.addEventListener("click", async () => {
+      const id = Number(el.dataset.id);
+      el.closest(".actions").querySelectorAll(".act").forEach(b => b.setAttribute("disabled", "true"));
+      try {
+        await respond(id, el.dataset.act);
+        $("banner").hidden = true;
+      } catch (err) {
+        $("errorBox").innerHTML = '<div class="error">Could not save the response: ' + esc(err.message) + '</div>';
+      }
+    });
+  });
+}
+
+function renderReadings() {
+  const rows = [...state.trend].reverse().slice(0, 12);
+  if (!rows.length) {
+    $("readings").innerHTML = '<tr><td colspan="6" class="muted">No readings yet.</td></tr>';
+    return;
+  }
+  $("readings").innerHTML = rows.map(r => {
+    const color = r.status === "FALL" ? ACCENT.alert : r.status === "ABNORMAL" ? ACCENT.watch : ACCENT.safe;
+    return '<tr><td>' + clock(r.created_at) + '</td>' +
+      '<td style="color:' + color + ';font-weight:600">' + statusWord(r.status) + '</td>' +
+      '<td class="num">' + num(r.acc_peak) + ' g</td>' +
+      '<td class="num">' + num(r.acc_min) + ' g</td>' +
+      '<td class="num">' + num(r.tilt, 0) + '</td>' +
+      '<td class="num">' + num(r.gyro_peak, 0) + '</td></tr>';
+  }).join("");
+}
+
+/* ---------------------------------------------------------------- boot --- */
+$("search").addEventListener("input", (e) => { state.query = e.target.value; renderNodes(); });
+$("bannerBtn").addEventListener("click", () => {
+  $("banner").hidden = true;
+  document.querySelector(".alert-card.open")?.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+$("soundBtn").addEventListener("click", (e) => {
+  state.sound = !state.sound;
+  e.currentTarget.setAttribute("aria-pressed", String(state.sound));
+  e.currentTarget.textContent = state.sound ? "Sound on" : "Sound off";
+  if (state.sound) beep();
+});
+
+setLink("connecting");
+refresh();
+connectRealtime();
+setInterval(refresh, POLL_MS);
+setInterval(render, 10000);   // keeps the "x min ago" labels honest
+</script>
+</body>
+</html>
