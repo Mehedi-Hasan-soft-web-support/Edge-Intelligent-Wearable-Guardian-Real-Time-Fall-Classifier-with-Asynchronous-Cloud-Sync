@@ -37,7 +37,7 @@
 //  USER CONFIGURATION
 // ===========================================================================
 const char *WIFI_SSID = "Momo";
-const char *WIFI_PASS = "momo123";
+const char *WIFI_PASS = "momo1234";
 
 const char *SUPABASE_URL = "https://zrwapsqqptlodfgnjzjs.supabase.co";
 const char *SUPABASE_KEY =
